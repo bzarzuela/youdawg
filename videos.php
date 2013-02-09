@@ -8,6 +8,8 @@ $autoloader = Zend_Loader_Autoloader::getInstance();
 
 $yt = new Zend_Gdata_YouTube(null, 'Hack-for-Fun-1.0', null, 'AI39si4E_GmwAJ71x0Hl4zI5HoXKseAmBt4sOtytWahDXOehvhReokFFhe_2JhGzg8wgYdgm8bdHR_fe8HodXYJ4kVpfRW69lw');
 
+var_dump($yt->newPlaylistListEntry());
+exit;
 
 $query = $yt->newVideoQuery();
 $query->videoQuery = $_GET['like'];
@@ -43,7 +45,12 @@ $videoFeed = $yt->getVideoFeed($query);
   <body>
     <h1>Videos from Youtube</h1>
     <?php foreach ($videoFeed as $video): ?>
-      <?php echo $video->getVideoTitle() ?>
+      <div class="video">
+        <p><?php echo $video->getVideoTitle() ?></p>
+        <?php if ($thumbnails = $video->getVideoThumbnails()): ?>
+          <img src="<?php echo $thumbnails[0]['url'] ?>">
+        <?php endif ?>
+      </div>
     <?php endforeach ?>
   </body>
 </html>
