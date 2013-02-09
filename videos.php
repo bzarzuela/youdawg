@@ -8,8 +8,6 @@ $autoloader = Zend_Loader_Autoloader::getInstance();
 
 $yt = new Zend_Gdata_YouTube(null, 'Hack-for-Fun-1.0', null, 'AI39si4E_GmwAJ71x0Hl4zI5HoXKseAmBt4sOtytWahDXOehvhReokFFhe_2JhGzg8wgYdgm8bdHR_fe8HodXYJ4kVpfRW69lw');
 
-var_dump($yt->newPlaylistListEntry());
-exit;
 
 $query = $yt->newVideoQuery();
 $query->videoQuery = $_GET['like'];

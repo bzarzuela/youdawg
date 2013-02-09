@@ -3,106 +3,117 @@ require 'config.php';
 
 require 'lib/facebook/src/facebook.php';
 
-// Create our Application instance (replace this with your appId and secret).
 $facebook = new Facebook(array(
   'appId'  => $config['facebook_app_id'],
   'secret' => $config['facebook_secret'],
 ));
 
-// Get User ID
 $user = $facebook->getUser();
 
-// We may or may not have this data based on whether the user is logged in.
-//
-// If we have a $user id here, it means we know the user is logged into
-// Facebook, but we don't know if the access token is valid. An access
-// token is invalid if the user logged out of Facebook.
+if (!$user) {
+  // We shouldn't be here
+  header('Location: fb-login.php');
+  exit;
+}
 
-if ($user) {
-  try {
-    $me = $facebook->api('/me?fields=gender,name,likes');
-    $user_likes = array();
-    foreach ($me['likes']['data'] as $like) {
-      $user_likes[$like['id']] = $like;
+$me = $facebook->api('/me?fields=gender,name,likes');
+
+$gender = $me['gender'];
+$target = ($me['gender'] == 'male') ? 'female' : 'male';
+
+// Build an easy lookup map of my likes.
+$user_likes = array();
+foreach ($me['likes']['data'] as $like) {
+  $user_likes[$like['id']] = $like;
+}
+
+$tmp = $facebook->api('/me/friends?fields=gender,name,relationship_status,picture,likes');
+$friends = $tmp['data']; // Because I don't have PHP 5.4
+
+$log = array();
+
+// Remove all unnecessary friends
+foreach ($friends as $key => $friend) {
+  if ((!isset($friend['gender'])) or
+     (!isset($friend['relationship_status'])))
+  {
+    $log[] = $friend['name'] . ' cannot be analyzed';
+    unset($friends[$key]);
+    continue;
+  }
+  
+  if (($friend['gender'] != $target) or
+     ($friend['relationship_status'] != 'Single'))
+  {
+    $log[] = $friend['name'] . ' is incompatible';
+    unset($friends[$key]);
+    continue;
+  }
+  
+  // Check if we're compatible.
+  foreach ($friend['likes']['data'] as $like) {
+    $friend['common_likes'] = array();
+    if (isset($user_likes[$like['id']])) {
+      $friend['common_likes'][] = $like['name'];
     }
-    // Proceed knowing you have a logged in user who's authenticated.
-    $friends = $facebook->api('/me/friends?fields=gender,name,relationship_status,picture,likes');
-  } catch (FacebookApiException $e) {
-    error_log($e);
-    $user = null;
+    $friends[$key] = $friend;
+  }
+  
+  // If we didn't find anything, well...
+  if (empty($friend['common_likes'])) {
+    $log[] = $friend['name'] . ' has nothing in common';
+    unset($friends[$key]);
   }
 }
 
-// Login or logout url will be needed depending on current user state.
-if ($user) {
-  $logoutUrl = $facebook->getLogoutUrl();
-} else {
-  $loginUrl = $facebook->getLoginUrl(array(
-    'scope' => 'friends_likes,friends_relationships,user_likes',
-  ));
-}
-
-
 ?>
-<!doctype html>
-<html xmlns:fb="http://www.facebook.com/2008/fbml">
-  <head>
-    <title>php-sdk</title>
-    <style>
-      body {
-        font-family: 'Lucida Grande', Verdana, Arial, sans-serif;
-      }
-      h1 a {
-        text-decoration: none;
-        color: #3b5998;
-      }
-      h1 a:hover {
-        text-decoration: underline;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>php-sdk</h1>
 
-    <?php if ($user): ?>
-      <a href="<?php echo $logoutUrl; ?>">Logout</a>
-    <?php else: ?>
-      <div>
-        Login using OAuth 2.0 handled by the PHP SDK:
-        <a href="<?php echo $loginUrl; ?>">Login with Facebook</a>
+<!DOCTYPE html>
+<html><head>
+<title>Little Black Book</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="description" content="" />
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+<!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+<script type="text/javascript" src="js/prettify.js"></script>                                   <!-- PRETTIFY -->
+<script type="text/javascript" src="js/kickstart.js"></script>                                  <!-- KICKSTART -->
+<link rel="stylesheet" type="text/css" href="css/kickstart.css" media="all" />                  <!-- KICKSTART -->
+<link rel="stylesheet" type="text/css" href="style.css" media="all" />                          <!-- CUSTOM STYLES -->
+</head><body>
+
+<div class="grid">
+	<div id="wrap" class="clearfix">
+
+	<div class="col_12">
+	  
+	  <h1>Good news, only one!</h1>
+	  <img src="img/good-news.jpg">
+    
+    <?php foreach ($friends as $friend): ?>
+      <div class="friend">
+        <form action="match.php" method="post">
+          <input type="hidden" name="common_likes" value="<?php echo serialize($friend['common_likes']) ?>">
+          <img src="<?php echo $friend['picture']['data']['url'] ?>">
+          <p><?php echo $friend['name'] ?></p>
+          <ul class="checks">
+            <?php foreach ($friend['common_likes'] as $like): ?>
+            <li><?php echo $like ?></li>  
+            <?php endforeach ?>
+          </ul>
+          <input type="submit" name="" value="I choose you!">
+        </form>
       </div>
-    <?php endif ?>
+    <?php endforeach ?>
+    
+    <ul>
+      <?php foreach ($log as $entry): ?>
+      <li><?php echo $entry ?></li>  
+      <?php endforeach ?>
+    </ul>
+    
+	</div>
 
-    <h3>PHP Session</h3>
-    <pre><?php print_r($_SESSION); ?></pre>
-
-    <?php if ($user): ?>
-      <?php 
-      $gender = $me['gender'];
-      $target = ($me['gender'] == 'male') ? 'female' : 'male';
-      ?>
-      <h1>Friends</h1>
-        <?php foreach ($friends['data'] as $friend): ?>
-          <?php if (!isset($friend['gender'])) { continue; } ?>
-          <?php if (!isset($friend['relationship_status'])) { continue; } ?>
-          <?php if (($friend['gender'] == $target) and ($friend['relationship_status'] = 'Single')): ?>
-            <div>
-              <img src="<?php echo $friend['picture']['data']['url'] ?>">
-              <p><a href="friend.php?id=<?php echo $friend['id'] ?>"><?php echo $friend['name'] ?></a></p>
-              <?php foreach ($friend['likes']['data'] as $like): ?>
-              <?php if (isset($user_likes[$like['id']])): ?>
-                <p>You both like <?php echo $like['name'] ?></p>
-              <?php endif ?>
-              <?php endforeach ?>
-            </div>
-          <?php endif ?>
-        
-        <?php endforeach ?>
-      
-      
-    <?php else: ?>
-      <strong><em>You are not Connected.</em></strong>
-    <?php endif ?>
-
-  </body>
-</html>
+	</div>
+</div>
+</body></html>
