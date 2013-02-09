@@ -20,9 +20,13 @@ $user = $facebook->getUser();
 
 if ($user) {
   try {
-    $me = $facebook->api('/me');
+    $me = $facebook->api('/me?fields=gender,name,likes');
+    $user_likes = array();
+    foreach ($me['likes']['data'] as $like) {
+      $user_likes[$like['id']] = $like;
+    }
     // Proceed knowing you have a logged in user who's authenticated.
-    $friends = $facebook->api('/me/friends?fields=gender,name,relationship_status,picture');
+    $friends = $facebook->api('/me/friends?fields=gender,name,relationship_status,picture,likes');
   } catch (FacebookApiException $e) {
     error_log($e);
     $user = null;
@@ -34,7 +38,7 @@ if ($user) {
   $logoutUrl = $facebook->getLogoutUrl();
 } else {
   $loginUrl = $facebook->getLoginUrl(array(
-    'scope' => 'friends_likes,friends_relationships',
+    'scope' => 'friends_likes,friends_relationships,user_likes',
   ));
 }
 
@@ -85,6 +89,11 @@ if ($user) {
             <div>
               <img src="<?php echo $friend['picture']['data']['url'] ?>">
               <p><a href="friend.php?id=<?php echo $friend['id'] ?>"><?php echo $friend['name'] ?></a></p>
+              <?php foreach ($friend['likes']['data'] as $like): ?>
+              <?php if (isset($user_likes[$like['id']])): ?>
+                <p>You both like <?php echo $like['name'] ?></p>
+              <?php endif ?>
+              <?php endforeach ?>
             </div>
           <?php endif ?>
         
