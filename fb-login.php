@@ -33,13 +33,17 @@ $loginUrl = $facebook->getLoginUrl(array(
 	<div id="wrap" class="clearfix">
 
 	<div class="col_12">
-	  <h1>Not so fast, lover boy.</h1>
+	  <div class="center">
+	   
+	   <h1>Allow me to find you<br> your perfect match!</h1>
+	   
+     
+     <div><img src="img/man-woman.png"></div>
+     <a href="<?php echo $loginUrl ?>" class="button blue large">Login with Facebook</a>
+	  </div>
 	  
-	  <img src="img/one-does-not-simply.jpg">
-
-    <p>You didn't think we'd let you use this without the requisite social media login, right?</p>
     
-    <a href="<?php echo $loginUrl ?>" class="button blue large">Login with Facebook</a>
+    
 	</div>
 
 	</div>

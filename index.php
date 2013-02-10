@@ -10,6 +10,10 @@ $facebook = new Facebook(array(
 
 $user = $facebook->getUser();
 
+$mc = new Memcached;
+$mc->addServer('127.0.0.1', 11211);
+
+
 if (!$user) {
   // We shouldn't be here
   header('Location: fb-login.php');
@@ -27,34 +31,56 @@ foreach ($me['likes']['data'] as $like) {
   $user_likes[$like['id']] = $like;
 }
 
-$tmp = $facebook->api('/me/friends?fields=gender,name,relationship_status,picture,likes');
+if (!($tmp = $mc->get($user))) {
+  $tmp = $facebook->api('/me/friends?fields=gender,name,relationship_status,picture,likes');
+  $res = $mc->set($user, $tmp);
+  if (!$res) {
+    echo "Cannot store in memcached";
+  }
+}
+
 $friends = $tmp['data']; // Because I don't have PHP 5.4
 
 $log = array();
 
 // Remove all unnecessary friends
 foreach ($friends as $key => $friend) {
-  if ((!isset($friend['gender'])) or
-     (!isset($friend['relationship_status'])))
+  if ((!isset($friend['gender'])))
   {
     $log[] = $friend['name'] . ' cannot be analyzed';
     unset($friends[$key]);
     continue;
   }
   
-  if (($friend['gender'] != $target) or
-     ($friend['relationship_status'] != 'Single'))
+  if (($friend['gender'] != $target))
   {
     $log[] = $friend['name'] . ' is incompatible';
     unset($friends[$key]);
     continue;
   }
   
+  // We're reducing the bar by settling for those who are overtly not single.
+  if (isset($friend['relationship_status']) and ($friend['relationship_status'] != 'Single'))
+  {
+    $log[] = $friend['name'] . ' is not available';
+    unset($friends[$key]);
+    continue;
+  }
+  
   // Check if we're compatible.
+  if (!isset($friend['likes'])) {
+    $log[] = $friend['name'] . ' did not list likes';
+    unset($friends[$key]);
+    continue;
+  }
+  
+  // I'm tired, don't ask.
   foreach ($friend['likes']['data'] as $like) {
+    $friend['common_likes_string'] = '';
     $friend['common_likes'] = array();
     if (isset($user_likes[$like['id']])) {
-      $friend['common_likes'][] = $like['name'];
+      $friend['common_likes_string'] .= trim($like['name']) . ',';
+      $friend['common_likes'][] = trim($like['name']);
     }
     $friends[$key] = $friend;
   }
@@ -87,14 +113,17 @@ foreach ($friends as $key => $friend) {
 
 	<div class="col_12">
 	  
-	  <h1>Good news, only one!</h1>
+	  <h1>Good news, I found <?php echo count($friends) ?>!</h1>
 	  <img src="img/good-news.jpg">
     
     <?php foreach ($friends as $friend): ?>
       <div class="friend">
         <form action="match.php" method="post">
-          <input type="hidden" name="common_likes" value="<?php echo serialize($friend['common_likes']) ?>">
-          <img src="<?php echo $friend['picture']['data']['url'] ?>">
+          <input type="hidden" name="common_likes" value="<?php echo base64_encode($friend['common_likes_string']) ?>">
+          <div class="center">
+            <img style="width: 100px" src="<?php echo $friend['picture']['data']['url'] ?>">
+          </div>
+          
           <p><?php echo $friend['name'] ?></p>
           <ul class="checks">
             <?php foreach ($friend['common_likes'] as $like): ?>
@@ -105,6 +134,8 @@ foreach ($friends as $key => $friend) {
         </form>
       </div>
     <?php endforeach ?>
+    
+    <div class="clearfix"></div>
     
     <ul>
       <?php foreach ($log as $entry): ?>
