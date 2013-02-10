@@ -20,10 +20,10 @@ if (!$user) {
   exit;
 }
 
-if (!$me = $mc->get($user . '-profile')) {
+// if (!$me = $mc->get($user . '-profile')) {
   $me = $facebook->api('/me?fields=gender,name,likes');
-  $mc->set($user . '-profile', $me);
-} 
+  // $mc->set($user . '-profile', $me);
+// } 
 
 $gender = $me['gender'];
 $target = ($me['gender'] == 'male') ? 'female' : 'male';
@@ -34,15 +34,41 @@ foreach ($me['likes']['data'] as $like) {
   $user_likes[$like['id']] = $like;
 }
 
-if (!($tmp = $mc->get($user))) {
-  $tmp = $facebook->api('/me/friends?fields=gender,name,relationship_status,picture,likes');
-  $res = $mc->set($user, $tmp);
+$friends = array();
+if (!($friends = $mc->get($user))) {
+  
+  $query = 'fields=gender,name,relationship_status,picture,likes&limit=100';
+  // echo $query, '<br/>';
+  while (1) {
+    $tmp = $facebook->api('/me/friends?' . $query);
+    
+    // echo count($tmp['data']);
+    // var_dump($tmp['paging']);
+    
+    foreach ($tmp['data'] as $t) {
+      $friends[] = $t;
+    }
+    if (count($tmp['data']) == 0) {
+      break;
+    }
+    if (!isset($tmp['paging']['next'])) {
+      break;
+    }
+    
+    $query = $tmp['paging']['next'];
+    $query = substr($query, strpos($query, '?')+1);
+    // echo $query, '<br>';
+  }
+  
+  
+  // var_dump($tmp);
+  $res = $mc->set($user, $friends);
   if (!$res) {
     echo "Cannot store in memcached";
   }
 }
 
-$friends = $tmp['data']; // Because I don't have PHP 5.4
+// $friends = $tmp['data']; // Because I don't have PHP 5.4
 
 $log = array();
 
@@ -143,12 +169,16 @@ foreach ($friends as $key => $friend) {
     </div>
     
     <div class="clearfix"></div>
-    <h1>Click on their photos and I'll sniff out some conversation pieces to help break the ice!</h1>
+    <?php if (count($friends) == 0): ?>
+      <h1>Sorry, but it looks like you're forever alone this Valentine's day!</h1>
+    <?php else: ?>
+      <h1>Click on their photos and I'll sniff out some conversation pieces to help break the ice!</h1>
+    <?php endif ?>
+    
     
     <div class="log">
       <h4>I had to sniff <?php echo count($log) ?> other friends to find you those!</h4>
-      <a href="#">Show me!</a>
-      <ul class="hide">
+      <ul>
         <?php foreach ($log as $entry): ?>
         <li><?php echo $entry ?></li>  
         <?php endforeach ?>
@@ -159,7 +189,7 @@ foreach ($friends as $key => $friend) {
       $(function () {
         $('.log a').click(function () {
           $('.log ul').show();
-          $(this).hide();
+          $('.log a').hide();
           return false;
         });
       });

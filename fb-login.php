@@ -10,7 +10,7 @@ $facebook = new Facebook(array(
 
 $loginUrl = $facebook->getLoginUrl(array(
   'scope' => 'friends_likes,friends_relationships,user_likes',
-  'redirect_uri' => 'http://127.0.0.1:8080/globelabs/index.php',
+  'redirect_uri' => 'http://96.126.118.42/globelabs/',
 ));
 
 ?>
