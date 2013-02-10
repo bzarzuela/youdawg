@@ -35,10 +35,11 @@ $loginUrl = $facebook->getLoginUrl(array(
 	<div class="col_12">
 	  <div class="center">
 	   
-	   <h1>Allow me to find you<br> your perfect match!</h1>
+	   <h1>Hello! I'm YoDawg! <br>Allow me to sniff your friends' <br>likes to find your perfect match!</h1>
 	   
-     
-     <div><img src="img/man-woman.png"></div>
+     <br>
+     <div><img src="img/dawg.png"></div>
+     <br>
      <a href="<?php echo $loginUrl ?>" class="button blue large">Login with Facebook</a>
 	  </div>
 	  

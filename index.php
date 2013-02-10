@@ -20,7 +20,10 @@ if (!$user) {
   exit;
 }
 
-$me = $facebook->api('/me?fields=gender,name,likes');
+if (!$me = $mc->get($user . '-profile')) {
+  $me = $facebook->api('/me?fields=gender,name,likes');
+  $mc->set($user . '-profile', $me);
+} 
 
 $gender = $me['gender'];
 $target = ($me['gender'] == 'male') ? 'female' : 'male';
@@ -113,15 +116,18 @@ foreach ($friends as $key => $friend) {
 
 	<div class="col_12">
 	  
-	  <h1>Good news, I found <?php echo count($friends) ?>!</h1>
-	  <img src="img/good-news.jpg">
+	    <h1>Awoo! I've found <?php echo count($friends) ?> matches for you!</h1>
+	  <img src="img/found.png" style="float: left; height: 240px;">
+	  
+    <!-- <div class="clearfix"></div> -->
     
+    <div class="friends">
     <?php foreach ($friends as $friend): ?>
-      <div class="friend">
+      <div class="col_2 friend">
         <form action="match.php" method="post">
           <input type="hidden" name="common_likes" value="<?php echo base64_encode($friend['common_likes_string']) ?>">
           <div class="center">
-            <img style="width: 100px" src="<?php echo $friend['picture']['data']['url'] ?>">
+            <input type="image" style="width: 100px" src="<?php echo $friend['picture']['data']['url'] ?>">
           </div>
           
           <p><?php echo $friend['name'] ?></p>
@@ -130,18 +136,34 @@ foreach ($friends as $key => $friend) {
             <li><?php echo $like ?></li>  
             <?php endforeach ?>
           </ul>
-          <input type="submit" name="" value="I choose you!">
+          
         </form>
       </div>
     <?php endforeach ?>
+    </div>
     
     <div class="clearfix"></div>
+    <h1>Click on their photos and I'll sniff out some conversation pieces to help break the ice!</h1>
     
-    <ul>
-      <?php foreach ($log as $entry): ?>
-      <li><?php echo $entry ?></li>  
-      <?php endforeach ?>
-    </ul>
+    <div class="log">
+      <h4>I had to sniff <?php echo count($log) ?> other friends to find you those!</h4>
+      <a href="#">Show me!</a>
+      <ul class="hide">
+        <?php foreach ($log as $entry): ?>
+        <li><?php echo $entry ?></li>  
+        <?php endforeach ?>
+      </ul>
+    </div>
+    
+    <script type="text/javascript" charset="utf-8">
+      $(function () {
+        $('.log a').click(function () {
+          $('.log ul').show();
+          $(this).hide();
+          return false;
+        });
+      });
+    </script>
     
 	</div>
 
